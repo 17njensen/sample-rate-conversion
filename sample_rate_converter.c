@@ -158,7 +158,8 @@ void main(int argc, char** argv){
     float fs_out = ((float)a/(float)b)*fs;
     printf("%d, %d\n",a,b);
     printf("%f\n",fs_out);
-    ho.d1 = (int)16537.5;
+    // ho.d1 = (int)16537.5;
+    ho.d1 = (int)fs_out;
     fwrite(&ho, sizeof(dsp_file_header), 1, fy); 
     printf("ndim = %d, nchan = %d, d0 = %d, d1 = %d, d2 = %d\n", h0.ndim, h0.nchan, h0.d0, h0.d1, h0.d2);
 
@@ -180,9 +181,7 @@ void main(int argc, char** argv){
         fread(x, sizeof(float), Lx, fx);
     } 
     xl = upsample(L, x, xl, Lz, Lx, Lh);
-    // fwrite(xl, sizeof(float), Lxl, fy);
     v = conv(xl, h, v, Lz, Lh, Lv);
-    // fwrite(v, sizeof(float), Lv, fy);
     y = downsample(M, v, y, Lv, Lx);
     fwrite(y, sizeof(float), Ly, fy); 
     printf("Lh = %d, Lx = %d, Ly = %d, Lv = %d, Lz = %d\n", Lh, Lx, Ly, Lv, Lz); 
