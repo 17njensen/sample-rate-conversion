@@ -3,7 +3,8 @@
 #include <string.h>
 #include <math.h>
 // #include "filter.h"
-#include "filter_scale.h"
+// #include "filter_scale.h"
+#include "filter_3.h"
 #include "cos_16.h"
 #include "cos_8.h"
 #include "cos_4.h"
@@ -29,7 +30,7 @@ Low Pass Filter info:
 ->  L > M so our cutoff frequency is pi/L = pi/3
 ->  cutoff is Fc = 1837.5
 ->  Has a gain of L = 3
-->  Sampling freq is Fs*(3/2) = 11025 *(3/2) = 16,537.h Hz
+->  Sampling freq is Fs*(3/2) = 11025 *(3/2) = 16,537.5 Hz
 
 https://en.wikipedia.org/wiki/Downsampling_(signal_processing)
 https://en.wikipedia.org/wiki/Upsampling
@@ -47,28 +48,52 @@ typedef struct
  int d2;  //length of third dimension 
 } dsp_file_header; 
 
+/**
+ * @brief Upsampler
+ * @param l L - our sampling constant
+ * @param x is our input
+ * @param xl is our output
+ * @param Lzl is the length of our output (with padding)
+ * @param Lx is our input length
+ * @param Lh is our impulse length
+ */
 float* upsample(int l, float* x, float* xl, int Lzl, int Lx, int Lh){
     printf("Start Upsampling\n");
-    int j;
-    for(int i = Lh-1, j = 0; i < (Lzl-Lh-1), j < Lx; i++, j++){ 
+    int j = 0;
+    int i;
+    for(i = Lh-1; i < (Lzl-Lh-1); i++){
+    // for(int i = Lh-1, j = 0; i < (Lzl-Lh-1), j < Lx; i++, j++){ 
         // printf("i = %d\tj = %d\n",i,j);
-        xl[i] = x[j];
-        // printf("xl[%d] = %f\t x[%d] = %f\n", i, xl[i], j, x[j]);
-        i = i + (l-1);//skip L-1 zeros
+        if(i%(L) == 0){
+            // printf("i = %d, j = %d\n",i,j);
+            xl[i] = x[j];
+            j++;
+        }
     }
+    printf("i = %d, j = %d\n",i,j);
     // printf("%d\n",sizeof(xl)); //i = 144175      j = 47899
     return xl;
 }
 
+/**
+ * @brief Downsampler
+ * @param m M - the downsampler constant
+ * @param x is the input
+ * @param y is the output
+ * @param Lx is the length of the input
+ * @param Ly is the length of our output
+ */
 float* downsample(int m, float* x, float* y, int Lx, int Ly){
     printf("Start Downsampling\n");
-    int j;
-    printf("x[10] = %f\n", x[10]);
-    for(int i = 0, j = 0; i < Lx, j < Ly; i++, j++){//grab every M-1 sample, store in every y[j]
-        y[j] = x[i];
-        i = i + (m-1);
+    int j = 0;
+    for(int i = 0; i < Lx; i++){
+    // for(int i = 0, j = 0; i < Lx, j < Ly; i++, j++){//grab every M-1 sample, store in every y[j]
+        if(i%(m) == 0){
+            // printf("i = %d, j = %d\n",i,j);
+            y[j] = x[i];
+            j++;
+        }
     }
-    printf("y[10] = %f\n", y[10]);
     return y;
 }
 
@@ -83,7 +108,7 @@ float* downsample(int m, float* x, float* y, int Lx, int Ly){
  */
 float* conv(float* x, float* h, float* y, int Lx, int Lh, int Ly){
     printf("Start Convolution\n");
-    // printf("Lh = %d, Lz_16 = %d, Lv_16 = %d\n", Lh, Lx, Ly); 
+    printf("Lh = %d, Lx = %d, Lv = %d\n", Lh, Lx, Ly); 
     int j;
     for (int i = 0; i < Ly; i++) { 
         // printf("check %d\n", i);
@@ -92,9 +117,23 @@ float* conv(float* x, float* h, float* y, int Lx, int Lh, int Ly){
             // printf("x[%d] = %f\th[%d] = %f\n",i,x[i+j],i,h[i]);
             //impulse is assumed to be in time reverse order 
         } 
-        // printf("i = %d\t j = %d\n", i, j);
+        //printf("i = %d\t j = %d\n", i, j); //i = 61703        j = 479
     }
     return y;
+}
+
+/**
+ * @brief Delay function?
+ * @param input is input
+ * @param output is output 
+ * @param in_length is input length
+ * @param out_length is output length
+ * @param delay_val is how much the input gets delayed by
+ */
+float* delay(float* input, float* output, int in_length, int out_length, int delay_val){
+    for(int i = 0; i < in_length; i++){
+        output[i] = input[i-delay_val]; //for out example, I believe we are seperating the input into 3 different outcomes 
+    }
 }
 
 void main(int argc, char** argv){
@@ -112,50 +151,59 @@ void main(int argc, char** argv){
     //grab headers of each file 
     dsp_file_header h0, h1, ho; 
     fread(&h0, sizeof(dsp_file_header), 1, fx); 
-    memcpy(&ho, &h0, sizeof(dsp_file_header)); 
+    memcpy(&ho, &h0, sizeof(dsp_file_header));
+    int a = L;
+    int b = M;
+    float fs = (float)h0.d1;
+    float fs_out = ((float)a/(float)b)*fs;
+    printf("%d, %d\n",a,b);
+    printf("%f\n",fs_out);
+    ho.d1 = (int)16537.5;
     fwrite(&ho, sizeof(dsp_file_header), 1, fy); 
     printf("ndim = %d, nchan = %d, d0 = %d, d1 = %d, d2 = %d\n", h0.ndim, h0.nchan, h0.d0, h0.d1, h0.d2);
 
     int Lh = sizeof(h)/sizeof(h[0]); //coefficients from filter.h
     
-    int Lx = h0.d0; //length of input signal 
-    int Lxl = h0.d0 * L; //length of output of upsample L
-    int Lz = Lx + 2 * (Lh - 1); //len of zero padded input 
-    int Lzl = Lxl + 2*(Lh-1); //length for calloc of xl
-    int Lv = Lxl + (Lh-1); //length of zero padded upsampled signal 
-    int Ly = Lv / M; // doesn't seem right, but it should be the length of every Mth sample of v's result
-    // int Ly = Lx + (Lh - 1); //len of conv result 
-    printf("Lh = %d, Lx = %d, Ly = %d, Lz = %d\n", Lh, Lx, Ly, Lz); 
-
-    // float* x = calloc(sizeof(float), Lx); //allocate data for file store 
-    // float* xl = calloc(sizeof(float), Lzl); //size of 3*Lx with zero padding since this signal is the one to get convolved.
-    // // float* h = calloc(sizeof(float), Lz);  
-    // float* v = calloc(sizeof(float), Lz);
-    // float* y = calloc(sizeof(float), Ly); 
-  
+    int Lx = h0.d0;
+    int Lxl = h0.d0 * L;
+    int Lz = Lxl + 2*(Lh-1); //length output for upsampled
+    int Lv = Lxl + (Lh-1); //length of filtered upsampled signal 
+    int Ly = Lv / M; //final output length
+    printf("Lh = %d, Lx = %d, Ly = %d, Lv = %d, Lzl = %d\n", Lh, Lx, Ly, Lv, Lz); 
+    float* x = calloc(sizeof(float), Lx); //allocate data for file store 
+    float* v = calloc(sizeof(float), Lz);
+    float* y = calloc(sizeof(float), Ly); 
+    float* xl = calloc(sizeof(float), Lz); 
     
-    // while (!feof(fx)) { // might need to adjust to account for convolution after we upsample. So maybe have size be just h1.d0 instead of + Lh-1 when reading
-    //     // fread((x + Lh - 1), sizeof(float), Lx, fx); //pulls in data when H0 is present, hence x+Lh-1 
-    //     fread((x), sizeof(float), Lx, fx);
-    // } 
-
+    while (!feof(fx)) { // might need to adjust to account for convolution after we upsample. So maybe have size be just h1.d0 instead of + Lh-1 when reading
+        // fread((x + Lh - 1), sizeof(float), Lx, fx); //pulls in data when H0 is present, hence x+Lh-1 
+        fread(x, sizeof(float), Lx, fx);
+    } 
+    xl = upsample(L, x, xl, Lz, Lx, Lh);
+    // fwrite(xl, sizeof(float), Lxl, fy);
+    v = conv(xl, h, v, Lz, Lh, Lv);
+    // fwrite(v, sizeof(float), Lv, fy);
+    y = downsample(M, v, y, Lv, Lx);
+    fwrite(y, sizeof(float), Ly, fy); 
+    printf("Lh = %d, Lx = %d, Ly = %d, Lv = %d, Lz = %d\n", Lh, Lx, Ly, Lv, Lz); 
+    printf("ndim = %d, nchan = %d, d0 = %d, d1 = %d, d2 = %d\n", ho.ndim, ho.nchan, ho.d0, ho.d1, ho.d2);
     //------------------------------------------------------------------------------------------------------cos_16
-    int Lx_16 = sizeof(x_16)/sizeof(x_16[0]);
-    int Lxl_16 = Lx_16 * L;
-    int Lz_16 = Lxl_16 + 2*(Lh-1); //length output for upsampled
-    int Lv_16 = Lxl_16 + (Lh-1); //length of filtered upsampled signal 
-    int Ly_16 = Lv_16 / M; //final output length
-    float* v_16 = calloc(sizeof(float), Lz_16);
-    float* y_16 = calloc(sizeof(float), Ly_16); 
-    float* xl_16 = calloc(sizeof(float), Lz_16);
-    printf("Lh_16 = %d, Lx_16 = %d, Ly_16 = %d, Lv_16 = %d, Lzl_16 = %d\n", Lh, Lx_16, Ly_16, Lv_16, Lz_16); 
+    // int Lx_16 = sizeof(x_16)/sizeof(x_16[0]);
+    // int Lxl_16 = Lx_16 * L;
+    // int Lz_16 = Lxl_16 + 2*(Lh-1); //length output for upsampled
+    // int Lv_16 = Lxl_16 + (Lh-1); //length of filtered upsampled signal 
+    // int Ly_16 = Lv_16 / M; //final output length
+    // float* v_16 = calloc(sizeof(float), Lz_16);
+    // float* y_16 = calloc(sizeof(float), Ly_16); 
+    // float* xl_16 = calloc(sizeof(float), Lz_16);
+    // printf("Lh_16 = %d, Lx_16 = %d, Ly_16 = %d, Lv_16 = %d, Lzl_16 = %d\n", Lh, Lx_16, Ly_16, Lv_16, Lz_16); 
 
-    xl_16 = upsample(L, x_16, xl_16, Lz_16, Lx_16, Lh);
-    // fwrite(xl_16, sizeof(float), Lxl_16, fy);
-    v_16 = conv(xl_16, h, v_16, Lz_16, Lh, Lv_16);
-    // fwrite(v_16, sizeof(float), Lv_16, fy);
-    y_16 = downsample(M, v_16, y_16, Lv_16, Ly_16);
-    fwrite(y_16, sizeof(float), Ly_16, fy); 
+    // xl_16 = upsample(L, x_16, xl_16, Lz_16, Lx_16, Lh);
+    // // fwrite(xl_16, sizeof(float), Lxl_16, fy);
+    // v_16 = conv(xl_16, h, v_16, Lz_16, Lh, Lv_16);
+    // // fwrite(v_16, sizeof(float), Lv_16, fy);
+    // y_16 = downsample(M, v_16, y_16, Lv_16, Ly_16);
+    // fwrite(y_16, sizeof(float), Ly_16, fy); 
     //------------------------------------------------------------------------------------------------------cos_8
     // int Lx_8 = sizeof(x_8)/sizeof(x_8[0]);
     // int Lxl_8 = Lx_8 * L;
@@ -190,7 +238,6 @@ void main(int argc, char** argv){
     // fwrite(y_4, sizeof(float), Ly_4, fy); 
     //------------------------------------------------------------------------------------------------------
     // //output to file
-    // fwrite(y, sizeof(float), Ly, fy); 
     fclose(fx); 
     fclose(fy); 
 }
