@@ -1,7 +1,8 @@
 %fid = fopen('test_out_16.bin');
 %fid = fopen('test_out_8.bin');
 %fid = fopen('test_out_4.bin');
-fid = fopen('ghost_out.bin');
+%fid = fopen('ghost_out.bin');
+fid = fopen('poly_ghost.bin');
 ndim  = fread(fid,1,'int');
 nchan = fread(fid,1,'int');
 dim0  = fread(fid,1,'int');
@@ -33,9 +34,9 @@ sound(x_out,fs_out)
 
 fclose(fid);
 %stem(x)
-plot(x)
+plot(x_out)
 hold on;
-plot(x1)
+plot(x_in)
 %hold on;
 %stem(xc)
 %plot(xc)
