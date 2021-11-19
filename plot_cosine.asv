@@ -1,11 +1,9 @@
-%fid = fopen('test_out_16.bin');
+fid = fopen('test_out_16.bin');
 %fid = fopen('test_out_8.bin');
 %fid = fopen('test_out_4.bin');
 %fid = fopen('ghost_out.bin');
 %fid = fopen('poly_ghost.bin');
 %fid = fopen('poly_16.bin');
-%fid = fopen('poly_8.bin');
-fid = fopen('poly_4.bin');
 %fid = fopen('ghost.bin');
 ndim  = fread(fid,1,'int');
 nchan = fread(fid,1,'int');
@@ -83,5 +81,5 @@ plot(nvals,20*log10(abs(fftshift(fft(xc,nfft)))));
 xlabel('Frequency(Hz)', 'FontSize', 10);
 ylabel('Amplitude(dB)','FontSize', 10);
 title('Cosine - No Polyphase','FontSize', 10);
-legend('Output', 'Input of 1/4')
+legend('Output', '', 'f = 1/4')
 whos
