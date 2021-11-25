@@ -6,6 +6,7 @@
 #include "cos_16.h"
 #include "cos_8.h"
 #include "cos_4.h"
+#include <time.h>
 
 /*
 This is for the second computer assignment in DSIP. 
@@ -16,7 +17,7 @@ Period = T = 1/11,025 Hz = 9.07x10^-5
 1. Upsample by L
 2. Convolve with a lowpass
 3. Downsample by M 
-
+Lh = 154
 L/M = 3/2
 
 Upsampling: 
@@ -29,6 +30,10 @@ Low Pass Filter info:
 ->  cutoff is Fc = 1837.5
 ->  Has a gain of L = 3
 ->  Sampling freq is Fs*(3/2) = 11025 *(3/2) = 16,537.5 Hz
+
+execution time comparison:
+Standard: 0.07800 sec OR 7.8ms
+Polyphase: 0.015 sec OR 1.5ms
 
 https://en.wikipedia.org/wiki/Downsampling_(signal_processing)
 https://en.wikipedia.org/wiki/Upsampling
@@ -66,7 +71,7 @@ float* upsample(int l, float* x, float* xl, int Lzl, int Lx, int Lh){
     printf("Start Upsampling\n");
     int j = 0;
     int i;
-    if(&Lh == NULL){
+    if(&Lh == NULL){ //in case of no zero padded input
         for(i = 0; i < (Lzl); i++){
             if(i%(L) == 0){
                 // printf("i = %d, j = %d\n",i,j);
@@ -74,9 +79,8 @@ float* upsample(int l, float* x, float* xl, int Lzl, int Lx, int Lh){
                 j++;
             }
         }
-        printf("i = %d, j = %d\n",i,j);
     }
-    else{
+    else{ //zero padded input
         for(i = Lh-1; i < (Lzl-Lh-1); i++){
         // for(int i = Lh-1, j = 0; i < (Lzl-Lh-1), j < Lx; i++, j++){ 
             // printf("i = %d\tj = %d\n",i,j);
@@ -86,7 +90,6 @@ float* upsample(int l, float* x, float* xl, int Lzl, int Lx, int Lh){
                 j++;
             }
         }
-        printf("i = %d, j = %d\n",i,j);
     }
     // printf("%d\n",sizeof(xl)); //i = 144175      j = 47899
     return xl;
@@ -103,7 +106,7 @@ float* upsample(int l, float* x, float* xl, int Lzl, int Lx, int Lh){
 float* downsample(int m, float* x, float* y, int Lx, int Ly, int Lh){
     printf("Start Downsampling\n");
     int j = 0;
-    if(&Lh == NULL){
+    if(&Lh == NULL){ //in case of no zero padded input
         for(int i = 0; i < Lx; i++){
             if(i%(m) == 0){
                 // printf("i = %d, j = %d\n",i,j);
@@ -112,7 +115,7 @@ float* downsample(int m, float* x, float* y, int Lx, int Ly, int Lh){
             }
         }
     }
-    else{
+    else{ //zero padded input
         for(int i = Lh-1; i < (Lx-Lh-1); i++){
             if(i%(m) == 0){
                 // printf("i = %d, j = %d\n",i,j);
@@ -135,7 +138,6 @@ float* downsample(int m, float* x, float* y, int Lx, int Ly, int Lh){
  */
 float* conv(float* x, float* h, float* y, int Lx, int Lh, int Ly){
     printf("Start Convolution\n");
-    printf("Lh = %d, Lx = %d, Lv = %d\n", Lh, Lx, Ly); 
     int j;
     for (int i = 0; i < Ly; i++) { 
         for (j = 0; j < Lh; j++) { 
@@ -154,12 +156,9 @@ float* conv(float* x, float* h, float* y, int Lx, int Lh, int Ly){
  * @param delay_val is how much the input gets delayed by
  */
 float* shift(float* input, float* output, int in_length, int out_length, int delay_val){
-    printf("in_l = %d, out_l = %d, delay_val = %d\n", in_length, out_length, delay_val);
     for(int i = 0; i < in_length; i++){
         if(i+delay_val < out_length && i+delay_val > 0){
-            // printf("i = %d, i+delay = %d\n",i, i+delay_val);
-            output[i+delay_val] = input[i];
-            // printf("output[n] = %f\n", output[i+delay_val]);
+            output[i+delay_val] = input[i]; //get a move on!
         }
     }
     return output;
@@ -263,10 +262,10 @@ void main(int argc, char** argv){
     printf("Create r statements\n");
     int Lrk = Lh/L;
     int Lrkk = Lrk/M;
-    float* r0 = calloc(sizeof(float), Lrk);//size needs to be changed?
+    float* r0 = calloc(sizeof(float), Lrk);
     float* r1 = calloc(sizeof(float), Lrk);
     float* r2 = calloc(sizeof(float), Lrk);
-    r0,r1,r2 = fetch_r_into_3(r0, r1, r2, h, Lh); //could modulate this better so less hard coding if used later
+    r0,r1,r2 = fetch_r_into_3(r0, r1, r2, h, Lh);
     float* r00 = calloc(sizeof(float), Lrkk);
     float* r01 = calloc(sizeof(float), Lrkk);
     printf("SPLIT r statements\n");
@@ -285,39 +284,29 @@ void main(int argc, char** argv){
 
     int Ld_pad = (Lx/2)+2*(Lh-1);
     int Lvk = (Lx/2)+(Lh-1); 
-
-    printf("go to first chunk\n");
+    clock_t begin = clock(); 
     //1.)
     float* x0_1 = calloc(sizeof(float), Lx);
     float* x0_2 = calloc(sizeof(float), Lx);
-    printf("shift x by -2 THEN shift x0_1 by 1\n");
     //x0_1 = shift(x, x0_1, Lx, Lx, -2);
     // x0_1 = shift(x_16, x0_1, Lx, Lx, -2);
     // x0_1 = shift(x_8, x0_1, Lx, Lx, -2);
     x0_1 = shift(x_4, x0_1, Lx, Lx, -2);
-    printf("done, start next shift by 1\n");
-    printf("x0_1[10] = %f\n", x0_1[10]);
     x0_2 = shift(x0_1, x0_2, Lx, Lx, 1);
-    printf("dont shifting\n");
     float* xd0_1 = calloc(sizeof(float), Ld_pad);
     float* xd0_2 = calloc(sizeof(float), Ld_pad);
-    printf("downsample x0_1 and x0_2\n");
     xd0_1 = downsample(M, x0_1, xd0_1, Lx, Ld_pad, Lh);
     xd0_2 = downsample(M, x0_2, xd0_2, Lx, Ld_pad, Lh);
-    printf("xd0_1[10] = %f\n", xd0_1[10]);
     float* v0_1 = calloc(sizeof(float), Lvk);
     float* v0_2 = calloc(sizeof(float), Lvk);
-    printf("convolve\n");
     v0_1 = conv(xd0_1, r00, v0_1, Ld_pad, Lrkk, Lvk);
     v0_2 = conv(xd0_2, r01, v0_2, Ld_pad, Lrkk, Lvk);
-    printf("v0_1[10] = %f\n", v0_1[10]);
     float* v_0 = calloc(sizeof(float), Lvk);
     for(int i = 0; i < Lvk; i++){
         v_0[i] = v0_1[i] + v0_2[i];
     }
     float* yu_0 = calloc(sizeof(float), Lvk*3);
     yu_0 = upsample(L, v_0, yu_0, 3*Lvk, Lvk, NULL);
-    printf("yu_0[10] = %f\n", yu_0[10]);
     float* y_0 = calloc(sizeof(float), 3*Lvk);
     y_0 = shift(yu_0, y_0, 3*Lvk, 3*Lvk, 1);
     free(x0_1);
@@ -330,7 +319,6 @@ void main(int argc, char** argv){
     free(yu_0);
     free(r00);
     free(r01);
-    printf("y_0[10] = %f\n", y_0[10]);
 
     //2.)
     float* x1_1 = calloc(sizeof(float), Lx);
@@ -340,22 +328,18 @@ void main(int argc, char** argv){
     // x1_1 = shift(x_8, x1_1, Lx, Lx, -2);
     x1_1 = shift(x_4, x1_1, Lx, Lx, -2);
     x1_2 = shift(x1_1, x1_2, Lx, Lx, 1);
-    printf("x1_1[10] = %f\n", x1_1[10]);
     float* xd1_1 = calloc(sizeof(float), Ld_pad);
     float* xd1_2 = calloc(sizeof(float), Ld_pad);
     xd1_1 = downsample(M, x1_1, xd1_1, Lx, Ld_pad, Lh);
     xd1_2 = downsample(M, x1_2, xd1_2, Lx, Ld_pad, Lh);
-    printf("xd1_1[10] = %f\n", xd1_1[10]);
     float* v1_1 = calloc(sizeof(float), Lvk);
     float* v1_2 = calloc(sizeof(float), Lvk);
     v1_1 = conv(xd1_1, r10, v1_1, Ld_pad, Lrkk, Lvk);
     v1_2 = conv(xd1_2, r11, v1_2, Ld_pad, Lrkk, Lvk);
-    printf("v1_1[10] = %f\n", v1_1[10]);
     float* v_1 = calloc(sizeof(float), Lvk);
     for(int i = 0; i < Lvk; i++){
         v_1[i] = v1_1[i] + v1_2[i];
     }
-    printf("v_1[10] = %f\n", v_1[10]);
     float* y_1 = calloc(sizeof(float), Lvk*3);
     y_1 = upsample(L, v_1, y_1, 3*Lvk, Lvk, NULL);
     free(x1_1);
@@ -367,7 +351,6 @@ void main(int argc, char** argv){
     free(v_1);
     free(r10);
     free(r11);
-    printf("y_1[11] = %f\n", y_1[12]);
     
 
 
@@ -415,6 +398,9 @@ void main(int argc, char** argv){
     for(int i = 0; i < 3*Lvk; i++){
         y[i] = y_2[i] + y01[i];
     }
+    clock_t end = clock();
+    double time_spent = (double)(end - begin)/CLOCKS_PER_SEC;
+    printf("Time of standard form = %f\n", time_spent);
     fwrite(y, sizeof(float), 3*Lvk, fy);
     printf("Lh = %d\n", Lh);
     // //output to file

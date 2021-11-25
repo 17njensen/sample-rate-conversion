@@ -41,9 +41,9 @@ Lh = 154;
 N = 100*Lh;
 n = 0:1:N-1;
 nvals = (0:nfft-1)/nfft;
-fo = 1/16; 
+%fo = 1/16; 
 %fo = 1/8; 
-%fo = 1/4;
+fo = 1/4;
 xc = cos(2*pi*fo*n);
 %plot(nvals,abs(fft(xc,nfft)))
 %hold on;
@@ -82,6 +82,6 @@ plot(nvals,20*log10(abs(fftshift(fft(xc,nfft)))));
 %plot(xout)
 xlabel('Frequency(Hz)', 'FontSize', 10);
 ylabel('Amplitude(dB)','FontSize', 10);
-title('Cosine - No Polyphase','FontSize', 10);
+title('Cosine - Polyphase','FontSize', 10);
 legend('Output', 'Input of 1/4')
 whos

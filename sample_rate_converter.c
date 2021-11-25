@@ -8,6 +8,7 @@
 #include "cos_16.h"
 #include "cos_8.h"
 #include "cos_4.h"
+#include <time.h>
 
 /*
 This is for the second computer assignment in DSIP. 
@@ -108,7 +109,6 @@ float* downsample(int m, float* x, float* y, int Lx, int Ly){
  */
 float* conv(float* x, float* h, float* y, int Lx, int Lh, int Ly){
     printf("Start Convolution\n");
-    printf("Lh = %d, Lx = %d, Lv = %d\n", Lh, Lx, Ly); 
     int j;
     for (int i = 0; i < Ly; i++) { 
         // printf("check %d\n", i);
@@ -176,65 +176,68 @@ void main(int argc, char** argv){
     float* y = calloc(sizeof(float), Ly); 
     float* xl = calloc(sizeof(float), Lz); 
     
-    while (!feof(fx)) { // might need to adjust to account for convolution after we upsample. So maybe have size be just h1.d0 instead of + Lh-1 when reading
-        // fread((x + Lh - 1), sizeof(float), Lx, fx); //pulls in data when H0 is present, hence x+Lh-1 
+    while (!feof(fx)) {
         fread(x, sizeof(float), Lx, fx);
-    } 
+    }
+    clock_t begin = clock(); 
     xl = upsample(L, x, xl, Lz, Lx, Lh);
     v = conv(xl, h, v, Lz, Lh, Lv);
     y = downsample(M, v, y, Lv, Lx);
+    clock_t end = clock();
+    double time_spent = (double)(end - begin)/CLOCKS_PER_SEC;
+    printf("Time of standard form = %f\n", time_spent);
     fwrite(y, sizeof(float), Ly, fy); 
     printf("Lh = %d, Lx = %d, Ly = %d, Lv = %d, Lz = %d\n", Lh, Lx, Ly, Lv, Lz); 
     printf("ndim = %d, nchan = %d, d0 = %d, d1 = %d, d2 = %d\n", ho.ndim, ho.nchan, ho.d0, ho.d1, ho.d2);
     //------------------------------------------------------------------------------------------------------cos_16
-    // int Lx_16 = sizeof(x_16)/sizeof(x_16[0]);
-    // int Lxl_16 = Lx_16 * L;
-    // int Lz_16 = Lxl_16 + 2*(Lh-1); //length output for upsampled
-    // int Lv_16 = Lxl_16 + (Lh-1); //length of filtered upsampled signal 
-    // int Ly_16 = Lv_16 / M; //final output length
-    // float* v_16 = calloc(sizeof(float), Lz_16);
-    // float* y_16 = calloc(sizeof(float), Ly_16); 
-    // float* xl_16 = calloc(sizeof(float), Lz_16);
-    // printf("Lh_16 = %d, Lx_16 = %d, Ly_16 = %d, Lv_16 = %d, Lzl_16 = %d\n", Lh, Lx_16, Ly_16, Lv_16, Lz_16); 
+    int Lx_16 = sizeof(x_16)/sizeof(x_16[0]);
+    int Lxl_16 = Lx_16 * L;
+    int Lz_16 = Lxl_16 + 2*(Lh-1); //length output for upsampled
+    int Lv_16 = Lxl_16 + (Lh-1); //length of filtered upsampled signal 
+    int Ly_16 = Lv_16 / M; //final output length
+    float* v_16 = calloc(sizeof(float), Lz_16);
+    float* y_16 = calloc(sizeof(float), Ly_16); 
+    float* xl_16 = calloc(sizeof(float), Lz_16);
+    printf("Lh_16 = %d, Lx_16 = %d, Ly_16 = %d, Lv_16 = %d, Lzl_16 = %d\n", Lh, Lx_16, Ly_16, Lv_16, Lz_16); 
 
-    // xl_16 = upsample(L, x_16, xl_16, Lz_16, Lx_16, Lh);
-    // // fwrite(xl_16, sizeof(float), Lxl_16, fy);
-    // v_16 = conv(xl_16, h, v_16, Lz_16, Lh, Lv_16);
-    // // fwrite(v_16, sizeof(float), Lv_16, fy);
-    // y_16 = downsample(M, v_16, y_16, Lv_16, Ly_16);
-    // fwrite(y_16, sizeof(float), Ly_16, fy); 
+    xl_16 = upsample(L, x_16, xl_16, Lz_16, Lx_16, Lh);
+    // fwrite(xl_16, sizeof(float), Lxl_16, fy);
+    v_16 = conv(xl_16, h, v_16, Lz_16, Lh, Lv_16);
+    // fwrite(v_16, sizeof(float), Lv_16, fy);
+    y_16 = downsample(M, v_16, y_16, Lv_16, Ly_16);
+    fwrite(y_16, sizeof(float), Ly_16, fy); 
     //------------------------------------------------------------------------------------------------------cos_8
-    // int Lx_8 = sizeof(x_8)/sizeof(x_8[0]);
-    // int Lxl_8 = Lx_8 * L;
-    // int Lz_8 = Lxl_8 + 2*(Lh-1); //length output for upsampled
-    // int Lv_8 = Lxl_8 + (Lh-1); //length of filtered upsampled signal 
-    // int Ly_8 = Lv_8 / M; //final output length
-    // float* v_8 = calloc(sizeof(float), Lz_8);
-    // float* y_8 = calloc(sizeof(float), Ly_8); 
-    // float* xl_8 = calloc(sizeof(float), Lz_8);
-    // printf("Lh_8 = %d, Lx_8 = %d, Ly_8 = %d, Lv_8 = %d, Lzl_8 = %d\n", Lh, Lx_8, Ly_8, Lv_8, Lz_8); 
+    int Lx_8 = sizeof(x_8)/sizeof(x_8[0]);
+    int Lxl_8 = Lx_8 * L;
+    int Lz_8 = Lxl_8 + 2*(Lh-1); //length output for upsampled
+    int Lv_8 = Lxl_8 + (Lh-1); //length of filtered upsampled signal 
+    int Ly_8 = Lv_8 / M; //final output length
+    float* v_8 = calloc(sizeof(float), Lz_8);
+    float* y_8 = calloc(sizeof(float), Ly_8); 
+    float* xl_8 = calloc(sizeof(float), Lz_8);
+    printf("Lh_8 = %d, Lx_8 = %d, Ly_8 = %d, Lv_8 = %d, Lzl_8 = %d\n", Lh, Lx_8, Ly_8, Lv_8, Lz_8); 
 
-    // xl_8 = upsample(L, x_8, xl_8, Lz_8, Lx_8, Lh);
-    // v_8 = conv(xl_8, h, v_8, Lz_8, Lh, Lv_8);
-    // y_8 = downsample(M, v_8, y_8, Lv_8, Ly_8);
-    // fwrite(y_8, sizeof(float), Ly_8, fy); 
+    xl_8 = upsample(L, x_8, xl_8, Lz_8, Lx_8, Lh);
+    v_8 = conv(xl_8, h, v_8, Lz_8, Lh, Lv_8);
+    y_8 = downsample(M, v_8, y_8, Lv_8, Ly_8);
+    fwrite(y_8, sizeof(float), Ly_8, fy); 
     //------------------------------------------------------------------------------------------------------cos_4
-    // int Lx_4 = sizeof(x_4)/sizeof(x_4[0]);
-    // int Lxl_4 = Lx_4 * L;
-    // int Lz_4 = Lxl_4 + 2*(Lh-1); //length output for upsampled
-    // int Lv_4 = Lxl_4 + (Lh-1); //length of filtered upsampled signal 
-    // int Ly_4 = Lv_4 / M; //final output length
-    // float* v_4 = calloc(sizeof(float), Lz_4);
-    // float* y_4 = calloc(sizeof(float), Ly_4); 
-    // float* xl_4 = calloc(sizeof(float), Lz_4);
-    // printf("Lh_4 = %d, Lx_4 = %d, Ly_4 = %d, Lv_4 = %d, Lzl_4 = %d\n", Lh, Lx_4, Ly_4, Lv_4, Lz_4); 
+    int Lx_4 = sizeof(x_4)/sizeof(x_4[0]);
+    int Lxl_4 = Lx_4 * L;
+    int Lz_4 = Lxl_4 + 2*(Lh-1); //length output for upsampled
+    int Lv_4 = Lxl_4 + (Lh-1); //length of filtered upsampled signal 
+    int Ly_4 = Lv_4 / M; //final output length
+    float* v_4 = calloc(sizeof(float), Lz_4);
+    float* y_4 = calloc(sizeof(float), Ly_4); 
+    float* xl_4 = calloc(sizeof(float), Lz_4);
+    printf("Lh_4 = %d, Lx_4 = %d, Ly_4 = %d, Lv_4 = %d, Lzl_4 = %d\n", Lh, Lx_4, Ly_4, Lv_4, Lz_4); 
 
-    // xl_4 = upsample(L, x_4, xl_4, Lz_4, Lx_4, Lh);
-    // v_4 = conv(xl_4, h, v_4, Lz_4, Lh, Lv_4);
-    // printf("v_4[10] = %f\n", v_4[10]);
-    // y_4 = downsample(M, v_4, y_4, Lv_4, Ly_4);
-    // printf("y_4[10] = %f\n", y_4[10]);
-    // fwrite(y_4, sizeof(float), Ly_4, fy); 
+    xl_4 = upsample(L, x_4, xl_4, Lz_4, Lx_4, Lh);
+    v_4 = conv(xl_4, h, v_4, Lz_4, Lh, Lv_4);
+    printf("v_4[10] = %f\n", v_4[10]);
+    y_4 = downsample(M, v_4, y_4, Lv_4, Ly_4);
+    printf("y_4[10] = %f\n", y_4[10]);
+    fwrite(y_4, sizeof(float), Ly_4, fy); 
     //------------------------------------------------------------------------------------------------------
     // //output to file
     fclose(fx); 
